@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { isLive } from "@/app/api/live/status/route";
+import { isLive } from "@/lib/live";
 import fs from "node:fs";
 import path from "node:path";
 import { liveDir } from "@/lib/paths";

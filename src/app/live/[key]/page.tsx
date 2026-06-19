@@ -2,7 +2,6 @@
 import { use, useEffect, useState } from "react";
 import Player from "@/components/Player";
 import Link from "next/link";
-import { livePlaylist } from "@/lib/paths";
 
 export default function Live({ params }: { params: Promise<{ key: string }> }) {
   const { key } = use(params);
@@ -24,7 +23,7 @@ export default function Live({ params }: { params: Promise<{ key: string }> }) {
       <Link href="/" className="text-blue-400 underline">← Library</Link>
       <h1 className="text-xl font-bold">Live: {key}</h1>
       {live ? (
-        <Player src={`/media/${livePlaylist(key)}`} />
+        <Player src={`/media/live/${key}/index.m3u8`} />
       ) : (
         <div className="aspect-video grid place-items-center bg-neutral-900 text-neutral-400">
           Offline — start streaming from OBS to <code>rtmp://localhost:1935/live/{key}</code>.
