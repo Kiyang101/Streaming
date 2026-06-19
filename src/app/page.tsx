@@ -6,6 +6,8 @@ import type { Video } from "@/lib/types";
 export default function Home() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [busy, setBusy] = useState(false);
+  // Upload progress as a percentage (0–100), or null when no upload is in flight.
+  const [progress, setProgress] = useState<number | null>(null);
 
   async function refresh() {
     const res = await fetch("/api/videos");
@@ -18,13 +20,27 @@ export default function Home() {
     return () => clearInterval(t);
   }, []);
 
-  async function onUpload(e: React.FormEvent<HTMLFormElement>) {
+  function onUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const form = e.currentTarget;
     setBusy(true);
-    await fetch("/api/upload", { method: "POST", body: new FormData(e.currentTarget) });
-    (e.target as HTMLFormElement).reset();
-    setBusy(false);
-    refresh();
+    setProgress(0);
+
+    // XMLHttpRequest (not fetch) so we can report real upload progress.
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/upload");
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) setProgress(Math.round((ev.loaded / ev.total) * 100));
+    };
+    const finish = () => {
+      form.reset();
+      setBusy(false);
+      setProgress(null);
+      refresh();
+    };
+    xhr.onload = finish;
+    xhr.onerror = finish;
+    xhr.send(new FormData(form));
   }
 
   return (
@@ -34,10 +50,23 @@ export default function Home() {
       <form onSubmit={onUpload} className="space-y-2 bg-neutral-900 p-4 rounded">
         <h2 className="font-semibold">Upload a video (VOD)</h2>
         <input name="title" placeholder="Title" className="w-full p-2 rounded bg-neutral-800" />
-        <input name="file" type="file" accept="video/*" required className="block" />
+        <input name="file" type="file" accept="video/*" required disabled={busy} className="block" />
         <button disabled={busy} className="px-4 py-2 bg-blue-600 rounded disabled:opacity-50">
           {busy ? "Uploading…" : "Upload"}
         </button>
+        {progress !== null && (
+          <div className="space-y-1" aria-label="Upload progress">
+            <div className="h-2 w-full overflow-hidden rounded bg-neutral-800">
+              <div
+                className="h-full bg-blue-500 transition-all duration-150"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-xs text-neutral-400">
+              {progress < 100 ? `Uploading… ${progress}%` : "Upload complete — processing…"}
+            </p>
+          </div>
+        )}
       </form>
 
       <section className="space-y-2">
