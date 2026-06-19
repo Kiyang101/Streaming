@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { contentTypeFor } from "@/app/media/[...path]/route";
+import { contentTypeFor } from "@/lib/contentType";
 
 describe("contentTypeFor", () => {
   it("maps m3u8 to the HLS playlist type", () => {
