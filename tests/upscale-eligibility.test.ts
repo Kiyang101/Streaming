@@ -13,8 +13,13 @@ describe("checkUpscaleEligibility", () => {
       .toEqual({ ok: false, status: 409, error: "video not ready" });
   });
   it("409 when already upscaling or upscaled", () => {
-    expect(checkUpscaleEligibility({ ...ready, upscaleStatus: "upscaling" }, false).status).toBe(409);
-    expect(checkUpscaleEligibility({ ...ready, upscaleStatus: "upscaled" }, false).status).toBe(409);
+    const upscaling = checkUpscaleEligibility({ ...ready, upscaleStatus: "upscaling" }, false);
+    expect(upscaling.ok).toBe(false);
+    if (!upscaling.ok) expect(upscaling.status).toBe(409);
+
+    const upscaled = checkUpscaleEligibility({ ...ready, upscaleStatus: "upscaled" }, false);
+    expect(upscaled.ok).toBe(false);
+    if (!upscaled.ok) expect(upscaled.status).toBe(409);
   });
   it("409 when another upscale is running (locked)", () => {
     expect(checkUpscaleEligibility(ready, true))
