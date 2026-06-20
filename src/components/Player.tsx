@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
+import { selectHlsStrategy } from "@/lib/hlsStrategy";
 
 /** Plays an HLS source (.m3u8). Works for both VOD and live. `src` is a relative
  *  media URL like "/media/vod/<id>/master.m3u8". */
@@ -13,12 +14,15 @@ export default function Player({ src }: { src: string }) {
     if (!video) return;
     setError(null);
 
-    // Safari plays HLS natively.
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
-      return;
-    }
-    if (Hls.isSupported()) {
+    // Prefer hls.js wherever it runs; only fall back to native HLS when it can't
+    // (e.g. iOS Safari). Native-first breaks browsers that report "maybe" for HLS
+    // but can't actually decode it (e.g. VS Code's embedded browser) — black video.
+    const strategy = selectHlsStrategy(
+      Hls.isSupported(),
+      video.canPlayType("application/vnd.apple.mpegurl"),
+    );
+
+    if (strategy === "hlsjs") {
       const hls = new Hls({ enableWorker: true });
       hls.loadSource(src);
       hls.attachMedia(video);
@@ -26,6 +30,10 @@ export default function Player({ src }: { src: string }) {
         if (data.fatal) setError("Stream unavailable or still processing.");
       });
       return () => hls.destroy();
+    }
+    if (strategy === "native") {
+      video.src = src;
+      return;
     }
     setError("HLS is not supported in this browser.");
   }, [src]);
