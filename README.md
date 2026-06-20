@@ -47,16 +47,29 @@ Ready VODs show an **Upscale to 4K** button. It runs Real-ESRGAN super-resolutio
 on the original upload, then rebuilds the HLS ladder with a true 2160p rendition.
 This is GPU-bound and slow — expect minutes of processing per minute of video.
 
-Requires the `realesrgan-ncnn-vulkan` binary and its model files:
+Requires the `realesrgan-ncnn-vulkan` binary and its model files. It is **not**
+in Homebrew — download the prebuilt portable bundle (binary + `models/`) from the
+official Real-ESRGAN release, e.g. for macOS (Apple Silicon and Intel, universal):
 
-    brew install realesrgan-ncnn-vulkan
-    # or download a release from https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan
+    DEST=~/tools/realesrgan
+    mkdir -p "$DEST"
+    curl -L -o /tmp/realesrgan.zip \
+      https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-macos.zip
+    unzip /tmp/realesrgan.zip -d "$DEST"
+    chmod +x "$DEST/realesrgan-ncnn-vulkan"
+    xattr -dr com.apple.quarantine "$DEST"   # clear Gatekeeper quarantine (unsigned binary)
+
+(The `*-macos.zip` from the `xinntao/Real-ESRGAN-ncnn-vulkan` repo ships the binary
+*without* the `models/` folder — use the `xinntao/Real-ESRGAN` release above, which
+bundles both. Linux/Windows portable bundles are on the same release page.)
 
 Environment variables:
 
-- `REALESRGAN_PATH` — path to the binary (default `realesrgan-ncnn-vulkan`)
+- `REALESRGAN_PATH` — path to the binary (default `realesrgan-ncnn-vulkan` on `PATH`),
+  e.g. `~/tools/realesrgan/realesrgan-ncnn-vulkan`
 - `REALESRGAN_MODEL` — model name (default `realesrgan-x4plus`)
-- `REALESRGAN_MODELS` — optional path to the models directory (passed as `-m`)
+- `REALESRGAN_MODELS` — path to the models directory (passed as `-m`); set this to the
+  bundle's `models/` dir, e.g. `~/tools/realesrgan/models`, unless it sits next to the binary
 
 Only one upscale job runs at a time. If the binary is missing the job fails and
 the card shows a failed state; the original video remains playable.
