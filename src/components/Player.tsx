@@ -51,7 +51,13 @@ function formatTime(seconds: number): string {
 /** Plays an HLS source (.m3u8) with a custom YouTube-style control overlay.
  *  Works for both VOD and live. `src` is a relative media URL like
  *  "/media/vod/<id>/master.m3u8". */
-export default function Player({ src }: { src: string }) {
+export default function Player({
+  src,
+  onTimeUpdate,
+}: {
+  src: string;
+  onTimeUpdate?: (seconds: number) => void;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -251,7 +257,10 @@ export default function Player({ src }: { src: string }) {
       setIsPlaying(false);
       setShowControls(true); // never hide controls while paused
     };
-    const onTimeUpdate = () => setCurrentTime(video.currentTime);
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      onTimeUpdate?.(video.currentTime);
+    };
     const onDurationChange = () =>
       setDuration(Number.isFinite(video.duration) ? video.duration : 0);
     const onVolumeChange = () => {
@@ -267,7 +276,7 @@ export default function Player({ src }: { src: string }) {
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
-    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("timeupdate", handleTimeUpdate);
     video.addEventListener("durationchange", onDurationChange);
     video.addEventListener("volumechange", onVolumeChange);
     video.addEventListener("progress", onProgress);
@@ -276,7 +285,7 @@ export default function Player({ src }: { src: string }) {
     return () => {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
-      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("timeupdate", handleTimeUpdate);
       video.removeEventListener("durationchange", onDurationChange);
       video.removeEventListener("volumechange", onVolumeChange);
       video.removeEventListener("progress", onProgress);
