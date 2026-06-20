@@ -40,3 +40,23 @@ npm run media-server   # RTMP ingest at rtmp://localhost:1935
 ```bash
 npm test
 ```
+
+## 4K AI upscaling (optional)
+
+Ready VODs show an **Upscale to 4K** button. It runs Real-ESRGAN super-resolution
+on the original upload, then rebuilds the HLS ladder with a true 2160p rendition.
+This is GPU-bound and slow — expect minutes of processing per minute of video.
+
+Requires the `realesrgan-ncnn-vulkan` binary and its model files:
+
+    brew install realesrgan-ncnn-vulkan
+    # or download a release from https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan
+
+Environment variables:
+
+- `REALESRGAN_PATH` — path to the binary (default `realesrgan-ncnn-vulkan`)
+- `REALESRGAN_MODEL` — model name (default `realesrgan-x4plus`)
+- `REALESRGAN_MODELS` — optional path to the models directory (passed as `-m`)
+
+Only one upscale job runs at a time. If the binary is missing the job fails and
+the card shows a failed state; the original video remains playable.
