@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Video, VideoStatus, UpscaleStatus } from "@/lib/types";
+import ThumbnailEditor from "@/components/ThumbnailEditor";
 
 /**
  * A single YouTube-style video card for the home grid.
@@ -225,23 +226,35 @@ function UpscaleControl({ video, onChanged }: { video: Video; onChanged?: () => 
 }
 
 export default function VideoCard({ video, onChanged }: { video: Video; onChanged?: () => void }) {
+  const [editing, setEditing] = useState(false);
+
   const body = (
     <>
       <Thumbnail video={video} />
       <div className="mt-3 flex items-start justify-between gap-2">
-        <h3 className="line-clamp-2 text-sm font-medium text-yt-text">
-          {video.title}
-        </h3>
+        <h3 className="line-clamp-2 text-sm font-medium text-yt-text">{video.title}</h3>
         <StatusBadge status={video.status} />
       </div>
       <ProgressBar video={video} />
       <UpscaleControl video={video} onChanged={onChanged} />
+      {video.type === "vod" && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setEditing(true);
+          }}
+          className="mt-2 ml-2 rounded-full border border-yt-surface px-3 py-1 text-xs font-medium text-yt-text transition-colors hover:bg-yt-surface"
+        >
+          Change thumbnail
+        </button>
+      )}
     </>
   );
 
-  // Only "ready" videos are watchable; everything else is a static card.
-  if (video.status === "ready") {
-    return (
+  const card =
+    video.status === "ready" ? (
       <Link
         href={`/watch/${video.id}`}
         className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-yt-red"
@@ -249,12 +262,22 @@ export default function VideoCard({ video, onChanged }: { video: Video; onChange
       >
         {body}
       </Link>
+    ) : (
+      <div className="block rounded-xl opacity-90" aria-label={`${video.title} (${video.status})`}>
+        {body}
+      </div>
     );
-  }
 
   return (
-    <div className="block rounded-xl opacity-90" aria-label={`${video.title} (${video.status})`}>
-      {body}
-    </div>
+    <>
+      {card}
+      {editing && (
+        <ThumbnailEditor
+          video={video}
+          onClose={() => setEditing(false)}
+          onChanged={onChanged}
+        />
+      )}
+    </>
   );
 }
