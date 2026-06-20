@@ -13,6 +13,13 @@ export function vodDir(id: string): string {
 export function vodPlaylist(id: string): string {
   return `vod/${id}/master.m3u8`;
 }
+export function vodThumb(id: string): string {
+  return path.join(mediaRoot(), "vod", id, "thumb.jpg");
+}
+/** Relative path (for browser URLs) to a VOD poster image. */
+export function vodThumbRel(id: string): string {
+  return `vod/${id}/thumb.jpg`;
+}
 export function liveDir(key: string): string {
   return path.join(mediaRoot(), "live", key);
 }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "node:fs";
 import { newId } from "@/lib/ids";
-import { uploadPath, vodDir, vodPlaylist } from "@/lib/paths";
-import { insertVideo, setStatus } from "@/lib/db";
-import { transcodeToHls } from "@/lib/transcode";
+import { uploadPath, vodDir, vodPlaylist, vodThumb, vodThumbRel } from "@/lib/paths";
+import { insertVideo, setStatus, setThumbnail, setProgress } from "@/lib/db";
+import { transcodeToHls, extractPoster } from "@/lib/transcode";
 
 const ALLOWED = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"];
 
@@ -35,8 +35,18 @@ export async function POST(req: NextRequest) {
   });
 
   // Fire-and-forget transcode; status updates when it finishes.
-  transcodeToHls(savedPath, vodDir(id))
-    .then(() => setStatus(id, "ready"))
+  // Progress is advisory: setProgress failures must never block the "ready" transition.
+  transcodeToHls(savedPath, vodDir(id), (p) => setProgress(id, p))
+    .then(async () => {
+      // Poster extraction is best-effort: failure must never block "ready".
+      try {
+        await extractPoster(savedPath, vodThumb(id));
+        setThumbnail(id, vodThumbRel(id));
+      } catch (err) {
+        console.error(`poster extraction failed for ${id}:`, err);
+      }
+      setStatus(id, "ready");
+    })
     .catch((err) => {
       console.error(`transcode failed for ${id}:`, err);
       setStatus(id, "failed");

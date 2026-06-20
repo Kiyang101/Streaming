@@ -17,11 +17,16 @@ export default function Home() {
     const data = await res.json();
     setVideos(data.videos);
   }
+
+  // Poll faster while anything is still transcoding so the percentage visibly
+  // advances, then back off to avoid over-polling an idle library.
+  const hasProcessing = videos.some((v) => v.status === "processing");
   useEffect(() => {
     refresh();
-    const t = setInterval(refresh, 4000); // reflect processing → ready
+    const intervalMs = hasProcessing ? 2000 : 4000; // reflect processing → ready
+    const t = setInterval(refresh, intervalMs);
     return () => clearInterval(t);
-  }, []);
+  }, [hasProcessing]);
 
   function onUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
