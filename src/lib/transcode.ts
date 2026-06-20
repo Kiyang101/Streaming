@@ -2,6 +2,63 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+export interface Rendition {
+  width: number;
+  height: number;
+  bitrate: string; // ffmpeg bitrate string, e.g. "2800k"
+}
+
+export const DEFAULT_LADDER: Rendition[] = [
+  { width: 1280, height: 720, bitrate: "2800k" },
+  { width: 854, height: 480, bitrate: "1400k" },
+];
+
+export const UHD_LADDER: Rendition[] = [
+  { width: 3840, height: 2160, bitrate: "16000k" },
+  { width: 1920, height: 1080, bitrate: "5000k" },
+  { width: 1280, height: 720, bitrate: "2800k" },
+];
+
+/**
+ * Build the ffmpeg argument list that produces an HLS ABR ladder from the given
+ * renditions. Pure (no I/O) so it can be unit-tested. The default ladder
+ * reproduces the original hardcoded 720p/480p command exactly.
+ */
+export function buildHlsArgs(inputPath: string, outDir: string, ladder: Rendition[]): string[] {
+  const n = ladder.length;
+  const labels = ladder.map((_, i) => `[v${i}]`).join("");
+  const scales = ladder
+    .map((r, i) => `[v${i}]scale=w=${r.width}:h=${r.height}[v${i}out]`)
+    .join(";");
+  const filterComplex = `[0:v]split=${n}${labels};${scales}`;
+
+  const videoMaps: string[] = [];
+  for (let i = 0; i < n; i++) {
+    videoMaps.push("-map", `[v${i}out]`, `-c:v:${i}`, "libx264", `-b:v:${i}`, ladder[i].bitrate);
+  }
+
+  const audioMaps: string[] = [];
+  for (let i = 0; i < n; i++) audioMaps.push("-map", "a:0?");
+  audioMaps.push("-c:a", "aac", "-b:a", "128k");
+
+  const varStreamMap = ladder.map((_, i) => `v:${i},a:${i}`).join(" ");
+
+  return [
+    "-y",
+    "-i", inputPath,
+    "-filter_complex", filterComplex,
+    ...videoMaps,
+    ...audioMaps,
+    "-f", "hls",
+    "-hls_time", "4",
+    "-hls_playlist_type", "vod",
+    "-hls_segment_filename", path.join(outDir, "v%v_%03d.ts"),
+    "-master_pl_name", "master.m3u8",
+    "-var_stream_map", varStreamMap,
+    path.join(outDir, "v%v.m3u8"),
+  ];
+}
+
 /**
  * Probe the duration (in seconds) of an input video via ffprobe.
  * Resolves a positive number; rejects on missing input / non-zero exit / NaN.
@@ -54,6 +111,7 @@ export function transcodeToHls(
   inputPath: string,
   outDir: string,
   onProgress?: (percent: number) => void,
+  ladder: Rendition[] = DEFAULT_LADDER,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(inputPath)) {
@@ -62,22 +120,9 @@ export function transcodeToHls(
     }
     fs.mkdirSync(outDir, { recursive: true });
 
-    // Two renditions; %v expands to the variant index (0,1) into per-variant dirs.
-    const args = [
-      "-y",
-      "-i", inputPath,
-      "-filter_complex", "[0:v]split=2[v0][v1];[v0]scale=w=1280:h=720[v0out];[v1]scale=w=854:h=480[v1out]",
-      "-map", "[v0out]", "-c:v:0", "libx264", "-b:v:0", "2800k",
-      "-map", "[v1out]", "-c:v:1", "libx264", "-b:v:1", "1400k",
-      "-map", "a:0?", "-map", "a:0?", "-c:a", "aac", "-b:a", "128k",
-      "-f", "hls",
-      "-hls_time", "4",
-      "-hls_playlist_type", "vod",
-      "-hls_segment_filename", path.join(outDir, "v%v_%03d.ts"),
-      "-master_pl_name", "master.m3u8",
-      "-var_stream_map", "v:0,a:0 v:1,a:1",
-      path.join(outDir, "v%v.m3u8"),
-    ];
+    // %v expands to the variant index into per-variant dirs; arg list is built
+    // from the rendition ladder (default ladder reproduces the original command).
+    const args = buildHlsArgs(inputPath, outDir, ladder);
 
     const run = (duration: number | null) => {
       // Emit computed progress over stdout only when onProgress + a valid duration exist.
