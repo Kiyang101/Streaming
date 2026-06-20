@@ -20,13 +20,13 @@ export default function Home() {
 
   // Poll faster while anything is still transcoding so the percentage visibly
   // advances, then back off to avoid over-polling an idle library.
-  const hasProcessing = videos.some((v) => v.status === "processing");
+  const isBusy = videos.some((v) => v.status === "processing" || v.upscaleStatus === "upscaling");
   useEffect(() => {
     refresh();
-    const intervalMs = hasProcessing ? 2000 : 4000; // reflect processing → ready
+    const intervalMs = isBusy ? 2000 : 4000;
     const t = setInterval(refresh, intervalMs);
     return () => clearInterval(t);
-  }, [hasProcessing]);
+  }, [isBusy]);
 
   function onUpload(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,7 +78,7 @@ export default function Home() {
       ) : (
         <div className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {videos.map((v) => (
-            <VideoCard key={v.id} video={v} />
+            <VideoCard key={v.id} video={v} onChanged={refresh} />
           ))}
         </div>
       )}

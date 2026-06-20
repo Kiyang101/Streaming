@@ -1,5 +1,7 @@
+"use client";
 import Link from "next/link";
-import type { Video, VideoStatus } from "@/lib/types";
+import { useState } from "react";
+import type { Video, VideoStatus, UpscaleStatus } from "@/lib/types";
 
 /**
  * A single YouTube-style video card for the home grid.
@@ -99,6 +101,32 @@ export function progressDisplay(video: Pick<Video, "status" | "progress">): Prog
   return { kind: "indeterminate" };
 }
 
+export type UpscaleAction =
+  | { kind: "none" }
+  | { kind: "button" }
+  | { kind: "progress"; pct: number }
+  | { kind: "badge" };
+
+/**
+ * Pure decision for the per-card upscale control, factored out for unit testing
+ * (vitest runs `environment: "node"`):
+ *  - non-ready video                 → no control
+ *  - ready + none/failed/undefined   → "Upscale to 4K" button
+ *  - upscaling                       → progress bar (clamped 0–100)
+ *  - upscaled                        → "4K" badge
+ */
+export function upscaleAction(
+  video: Pick<Video, "status" | "upscaleStatus" | "upscaleProgress">,
+): UpscaleAction {
+  if (video.status !== "ready") return { kind: "none" };
+  if (video.upscaleStatus === "upscaling") {
+    const pct = Math.max(0, Math.min(100, video.upscaleProgress ?? 0));
+    return { kind: "progress", pct };
+  }
+  if (video.upscaleStatus === "upscaled") return { kind: "badge" };
+  return { kind: "button" };
+}
+
 function ProgressBar({ video }: { video: Video }) {
   const display = progressDisplay(video);
   if (display.kind === "none") return null;
@@ -139,7 +167,64 @@ function ProgressBar({ video }: { video: Video }) {
   );
 }
 
-export default function VideoCard({ video }: { video: Video }) {
+function UpscaleControl({ video, onChanged }: { video: Video; onChanged?: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const action = upscaleAction(video);
+
+  if (action.kind === "none") return null;
+
+  if (action.kind === "badge") {
+    return (
+      <span className="mt-2 inline-block rounded-full bg-yt-red px-2 py-0.5 text-xs font-medium text-white">
+        4K
+      </span>
+    );
+  }
+
+  if (action.kind === "progress") {
+    return (
+      <div className="mt-2">
+        <div
+          className="h-2 w-full overflow-hidden rounded bg-yt-bg"
+          role="progressbar"
+          aria-valuenow={action.pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Upscaling ${video.title}: ${action.pct}%`}
+        >
+          <div className="h-full bg-yt-red transition-all" style={{ width: `${action.pct}%` }} />
+        </div>
+        <span className="mt-1 block text-xs text-yt-subtext">Upscaling… {action.pct}%</span>
+      </div>
+    );
+  }
+
+  // action.kind === "button"
+  async function start(e: React.MouseEvent) {
+    e.preventDefault(); // don't trigger the card's watch link
+    e.stopPropagation();
+    setBusy(true);
+    try {
+      await fetch(`/api/videos/${video.id}/upscale`, { method: "POST" });
+    } finally {
+      setBusy(false);
+      onChanged?.();
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={start}
+      disabled={busy}
+      className="mt-2 rounded-full border border-yt-surface px-3 py-1 text-xs font-medium text-yt-text transition-colors hover:bg-yt-surface disabled:opacity-50"
+    >
+      {busy ? "Starting…" : "Upscale to 4K"}
+    </button>
+  );
+}
+
+export default function VideoCard({ video, onChanged }: { video: Video; onChanged?: () => void }) {
   const body = (
     <>
       <Thumbnail video={video} />
@@ -150,6 +235,7 @@ export default function VideoCard({ video }: { video: Video }) {
         <StatusBadge status={video.status} />
       </div>
       <ProgressBar video={video} />
+      <UpscaleControl video={video} onChanged={onChanged} />
     </>
   );
 

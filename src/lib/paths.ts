@@ -1,4 +1,5 @@
 import path from "node:path";
+import fs from "node:fs";
 
 export function mediaRoot(): string {
   return path.join(process.cwd(), "media");
@@ -26,4 +27,30 @@ export function liveDir(key: string): string {
 /** Relative path (for browser URLs) to a live playlist. */
 export function livePlaylist(key: string): string {
   return `live/${key}/index.m3u8`;
+}
+
+export function uploadsDir(): string {
+  return path.join(mediaRoot(), "uploads");
+}
+
+/**
+ * Pure: given a list of filenames and an id, return the one whose stem (name
+ * without extension) equals the id, else null. The upload route saves the
+ * original as `<id>.<ext>`, so the stem uniquely identifies it.
+ */
+export function matchUploadFile(filenames: string[], id: string): string | null {
+  for (const name of filenames) {
+    const dot = name.lastIndexOf(".");
+    const stem = dot === -1 ? name : name.slice(0, dot);
+    if (stem === id) return name;
+  }
+  return null;
+}
+
+/** Absolute path to the original uploaded source for a video id, or null. */
+export function findUpload(id: string): string | null {
+  const dir = uploadsDir();
+  if (!fs.existsSync(dir)) return null;
+  const match = matchUploadFile(fs.readdirSync(dir), id);
+  return match ? path.join(dir, match) : null;
 }
