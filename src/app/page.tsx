@@ -2,12 +2,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Video } from "@/lib/types";
+import VideoCard from "@/components/VideoCard";
+import UploadModal from "@/components/UploadModal";
 
 export default function Home() {
   const [videos, setVideos] = useState<Video[]>([]);
   const [busy, setBusy] = useState(false);
   // Upload progress as a percentage (0–100), or null when no upload is in flight.
   const [progress, setProgress] = useState<number | null>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   async function refresh() {
     const res = await fetch("/api/videos");
@@ -36,6 +39,7 @@ export default function Home() {
       form.reset();
       setBusy(false);
       setProgress(null);
+      setUploadOpen(false);
       refresh();
     };
     xhr.onload = finish;
@@ -44,51 +48,43 @@ export default function Home() {
   }
 
   return (
-    <main className="max-w-3xl mx-auto p-6 space-y-8">
-      <h1 className="text-2xl font-bold">Streaming Prototype</h1>
-
-      <form onSubmit={onUpload} className="space-y-2 bg-neutral-900 p-4 rounded">
-        <h2 className="font-semibold">Upload a video (VOD)</h2>
-        <input name="title" placeholder="Title" className="w-full p-2 rounded bg-neutral-800" />
-        <input name="file" type="file" accept="video/*" required disabled={busy} className="block" />
-        <button disabled={busy} className="px-4 py-2 bg-blue-600 rounded disabled:opacity-50">
-          {busy ? "Uploading…" : "Upload"}
+    <div className="mx-auto max-w-screen-xl p-6">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <h1 className="text-xl font-bold text-yt-text">Library</h1>
+        <button
+          type="button"
+          onClick={() => setUploadOpen(true)}
+          className="rounded-full bg-yt-red px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-yt-redHover"
+        >
+          Upload video
         </button>
-        {progress !== null && (
-          <div className="space-y-1" aria-label="Upload progress">
-            <div className="h-2 w-full overflow-hidden rounded bg-neutral-800">
-              <div
-                className="h-full bg-blue-500 transition-all duration-150"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <p className="text-xs text-neutral-400">
-              {progress < 100 ? `Uploading… ${progress}%` : "Upload complete — processing…"}
-            </p>
-          </div>
-        )}
-      </form>
+      </div>
 
-      <section className="space-y-2">
-        <h2 className="font-semibold">Library</h2>
-        <p className="text-sm text-neutral-400">
-          Live: point OBS at <code>rtmp://localhost:1935/live/devkey</code>, then open{" "}
-          <Link href="/live/devkey" className="text-blue-400 underline">the live page</Link>.
-        </p>
-        {videos.length === 0 && <p className="text-neutral-500">No videos yet.</p>}
-        <ul className="divide-y divide-neutral-800">
+      <p className="mb-6 text-sm text-yt-subtext">
+        Live: point OBS at <code>rtmp://localhost:1935/live/devkey</code>, then open{" "}
+        <Link href="/live/devkey" className="text-yt-text underline hover:text-yt-red">
+          the live page
+        </Link>
+        .
+      </p>
+
+      {videos.length === 0 ? (
+        <p className="text-yt-subtext">No videos yet. Upload one to get started.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {videos.map((v) => (
-            <li key={v.id} className="py-2 flex justify-between">
-              <span>{v.title}</span>
-              {v.status === "ready" ? (
-                <Link href={`/watch/${v.id}`} className="text-blue-400 underline">Watch</Link>
-              ) : (
-                <span className="text-neutral-500">{v.status}…</span>
-              )}
-            </li>
+            <VideoCard key={v.id} video={v} />
           ))}
-        </ul>
-      </section>
-    </main>
+        </div>
+      )}
+
+      <UploadModal
+        open={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        onSubmit={onUpload}
+        busy={busy}
+        progress={progress}
+      />
+    </div>
   );
 }
