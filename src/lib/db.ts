@@ -18,9 +18,19 @@ export function openDb(file?: string): Database.Database {
       type TEXT NOT NULL,
       status TEXT NOT NULL,
       path TEXT NOT NULL,
-      createdAt INTEGER NOT NULL
+      createdAt INTEGER NOT NULL,
+      thumbnail TEXT,
+      progress INTEGER
     );
   `);
+  // Migrate pre-existing DBs that lack the thumbnail column.
+  try {
+    db.exec(`ALTER TABLE videos ADD COLUMN thumbnail TEXT`);
+  } catch {}
+  // Migrate pre-existing DBs that lack the progress column.
+  try {
+    db.exec(`ALTER TABLE videos ADD COLUMN progress INTEGER`);
+  } catch {}
   return db;
 }
 
@@ -45,4 +55,12 @@ export function getVideo(id: string): Video | undefined {
 
 export function setStatus(id: string, status: VideoStatus): void {
   conn().prepare(`UPDATE videos SET status = ? WHERE id = ?`).run(status, id);
+}
+
+export function setThumbnail(id: string, thumbnail: string): void {
+  conn().prepare(`UPDATE videos SET thumbnail = ? WHERE id = ?`).run(thumbnail, id);
+}
+
+export function setProgress(id: string, percent: number): void {
+  conn().prepare(`UPDATE videos SET progress = ? WHERE id = ?`).run(percent, id);
 }

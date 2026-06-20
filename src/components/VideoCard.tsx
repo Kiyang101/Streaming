@@ -42,6 +42,16 @@ function gradientFor(id: string): string {
 
 function Thumbnail({ video }: { video: Video }) {
   const initial = video.title.trim().charAt(0).toUpperCase() || "?";
+  if (video.thumbnail) {
+    return (
+      <img
+        src={`/media/${video.thumbnail}`}
+        alt={video.title}
+        loading="lazy"
+        className="aspect-video w-full rounded-xl object-cover"
+      />
+    );
+  }
   return (
     <div
       className={`relative aspect-video w-full overflow-hidden rounded-xl bg-gradient-to-br ${gradientFor(
@@ -67,6 +77,68 @@ function StatusBadge({ status }: { status: VideoStatus }) {
   );
 }
 
+/**
+ * Pure decision for the processing-card progress UI, factored out so it can be
+ * unit-tested without a DOM render (vitest runs `environment: "node"`):
+ *  - non-processing status        → no progress UI ({ kind: "none" })
+ *  - processing + numeric progress → determinate bar ({ kind: "percent", pct })
+ *  - processing + null/undefined   → indeterminate "Processing…" bar
+ */
+export type ProgressDisplay =
+  | { kind: "none" }
+  | { kind: "percent"; pct: number }
+  | { kind: "indeterminate" };
+
+export function progressDisplay(video: Pick<Video, "status" | "progress">): ProgressDisplay {
+  if (video.status !== "processing") return { kind: "none" };
+  if (typeof video.progress === "number") {
+    // Clamp to a sane 0–100 range so a stray DB value can't overflow the bar.
+    const pct = Math.max(0, Math.min(100, video.progress));
+    return { kind: "percent", pct };
+  }
+  return { kind: "indeterminate" };
+}
+
+function ProgressBar({ video }: { video: Video }) {
+  const display = progressDisplay(video);
+  if (display.kind === "none") return null;
+
+  if (display.kind === "percent") {
+    return (
+      <div className="mt-2">
+        <div
+          className="h-2 w-full overflow-hidden rounded bg-yt-bg"
+          role="progressbar"
+          aria-valuenow={display.pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Transcoding ${video.title}: ${display.pct}%`}
+        >
+          <div
+            className="h-full bg-yt-red transition-all"
+            style={{ width: `${display.pct}%` }}
+          />
+        </div>
+        <span className="mt-1 block text-xs text-yt-subtext">{display.pct}%</span>
+      </div>
+    );
+  }
+
+  // Indeterminate: animated bar, no number.
+  return (
+    <div className="mt-2">
+      <div
+        className="h-2 w-full overflow-hidden rounded bg-yt-bg"
+        role="progressbar"
+        aria-label={`Processing ${video.title}`}
+      >
+        <div className="h-full w-1/3 animate-pulse bg-yt-red" />
+      </div>
+      <span className="mt-1 block text-xs text-yt-subtext">Processing…</span>
+    </div>
+  );
+}
+
 export default function VideoCard({ video }: { video: Video }) {
   const body = (
     <>
@@ -77,6 +149,7 @@ export default function VideoCard({ video }: { video: Video }) {
         </h3>
         <StatusBadge status={video.status} />
       </div>
+      <ProgressBar video={video} />
     </>
   );
 

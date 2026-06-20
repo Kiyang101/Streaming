@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mediaRoot, uploadPath, vodDir, vodPlaylist, livePlaylist } from "@/lib/paths";
+import { mediaRoot, uploadPath, vodDir, vodPlaylist, vodThumb, vodThumbRel, livePlaylist } from "@/lib/paths";
 import path from "node:path";
 
 describe("paths", () => {
@@ -15,5 +15,11 @@ describe("paths", () => {
   });
   it("builds a live playlist relative path", () => {
     expect(livePlaylist("devkey")).toBe("live/devkey/index.m3u8");
+  });
+  it("builds an absolute vod thumbnail path", () => {
+    expect(vodThumb("id1")).toBe(path.join(mediaRoot(), "vod", "id1", "thumb.jpg"));
+  });
+  it("builds a relative vod thumbnail path", () => {
+    expect(vodThumbRel("id1")).toBe("vod/id1/thumb.jpg");
   });
 });
