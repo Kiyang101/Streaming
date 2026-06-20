@@ -19,6 +19,21 @@ const AUTO_LEVEL = -1;
 const CONTROLS_IDLE_MS = 2500;
 /** Seconds to jump when seeking with the left/right arrow keys. */
 const SEEK_STEP_SECONDS = 5;
+/** localStorage key for the persisted fit/fill (zoom-to-fill) preference. */
+const FILL_MODE_KEY = "player:fillMode";
+
+/** Tailwind object-fit class for the video. `cover` crops the frame to fill the
+ *  player box (zoom-to-fill, useful on ultrawide/21:9 screens); `contain`
+ *  letterboxes to show the whole frame. */
+export function videoFitClass(fillMode: boolean): "object-cover" | "object-contain" {
+  return fillMode ? "object-cover" : "object-contain";
+}
+
+/** Parse the persisted fill preference. Only the literal "fill" means on, so any
+ *  legacy/garbage value (or null) safely defaults to off. */
+export function parseFillMode(raw: string | null): boolean {
+  return raw === "fill";
+}
 
 /** Format a number of seconds as m:ss (or h:mm:ss for long content). Guards
  *  against NaN/Infinity, which `video.duration` reports before metadata loads. */
@@ -54,6 +69,11 @@ export default function Player({ src }: { src: string }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  // Zoom-to-fill: crop the video to fill the player box instead of letterboxing.
+  // Defaults to off so SSR and the first client render agree (no hydration
+  // mismatch); the persisted preference is restored from localStorage in a
+  // mount effect below, and written back only on explicit toggle.
+  const [fillMode, setFillMode] = useState(false);
 
   // --- Source attachment ---------------------------------------------------
   // CRITICAL: hls.js-first selection preserved exactly. selectHlsStrategy is
@@ -170,6 +190,16 @@ export default function Player({ src }: { src: string }) {
     }
   }, []);
 
+  const toggleFill = useCallback(() => {
+    const next = !fillMode;
+    setFillMode(next);
+    try {
+      window.localStorage.setItem(FILL_MODE_KEY, next ? "fill" : "fit");
+    } catch {
+      // Ignore: localStorage may be unavailable (private mode / disabled).
+    }
+  }, [fillMode]);
+
   const selectQuality = useCallback((levelId: number) => {
     const hls = hlsRef.current;
     if (hls) {
@@ -198,6 +228,17 @@ export default function Player({ src }: { src: string }) {
     return () => {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     };
+  }, []);
+
+  // Restore the persisted fit/fill preference once, after hydration. Writes
+  // happen only on explicit toggle (see toggleFill), so this read can't be
+  // clobbered by a mount-time write under React StrictMode.
+  useEffect(() => {
+    try {
+      setFillMode(parseFillMode(window.localStorage.getItem(FILL_MODE_KEY)));
+    } catch {
+      // Ignore: localStorage may be unavailable (private mode / disabled).
+    }
   }, []);
 
   // --- Media element event wiring -----------------------------------------
@@ -275,6 +316,10 @@ export default function Player({ src }: { src: string }) {
           event.preventDefault();
           toggleFullscreen();
           break;
+        case "e":
+          event.preventDefault();
+          toggleFill();
+          break;
         case "ArrowRight":
           event.preventDefault();
           seekBy(SEEK_STEP_SECONDS);
@@ -288,7 +333,7 @@ export default function Player({ src }: { src: string }) {
       }
       revealControls();
     },
-    [togglePlay, toggleMute, toggleFullscreen, seekBy, revealControls],
+    [togglePlay, toggleMute, toggleFullscreen, toggleFill, seekBy, revealControls],
   );
 
   // --- Scrub bar interaction ----------------------------------------------
@@ -336,7 +381,7 @@ export default function Player({ src }: { src: string }) {
     >
       <video
         ref={videoRef}
-        className="w-full h-full bg-black"
+        className={`w-full h-full bg-black ${videoFitClass(fillMode)}`}
         playsInline
         onClick={togglePlay}
       />
@@ -467,6 +512,19 @@ export default function Player({ src }: { src: string }) {
             </div>
           )}
 
+          {/* Zoom-to-fill toggle (crop to fill ultrawide screens) */}
+          <button
+            type="button"
+            aria-label={fillMode ? "Fit to screen" : "Zoom to fill"}
+            aria-pressed={fillMode}
+            onClick={toggleFill}
+            className={`grid place-items-center hover:text-yt-red ${
+              fillMode ? "text-yt-red" : ""
+            }`}
+          >
+            <FillIcon className="h-5 w-5" />
+          </button>
+
           {/* Fullscreen toggle */}
           <button
             type="button"
@@ -567,6 +625,15 @@ function ExitFullscreenIcon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       <path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z" />
+    </svg>
+  );
+}
+
+function FillIcon({ className }: IconProps) {
+  // Horizontal double-arrow: conveys "expand to fill the width" (zoom-to-fill).
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M2 12l5-5v3h10V7l5 5-5 5v-3H7v3z" />
     </svg>
   );
 }
