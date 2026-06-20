@@ -1,4 +1,4 @@
-import Player from "@/components/Player";
+import WatchPlayer from "@/components/WatchPlayer";
 import VideoCard from "@/components/VideoCard";
 import { getVideo, listVideos } from "@/lib/db";
 import type { Video } from "@/lib/types";
@@ -49,7 +49,7 @@ export default async function Watch({ params }: { params: Promise<{ id: string }
       <div className="grid grid-cols-1 gap-x-6 gap-y-8 lg:grid-cols-3">
         {/* Main column: player + title + metadata */}
         <div className="lg:col-span-2">
-          <Player src={`/media/${video.path}`} />
+          <WatchPlayer video={video} />
 
           <h1 className="mt-4 text-xl font-bold text-yt-text">{video.title}</h1>
 
