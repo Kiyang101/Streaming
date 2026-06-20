@@ -1,5 +1,7 @@
 node_modules/
 .next/
-media/
+/media/
 *.log
 .DS_Store
+*.tsbuildinfo
+.claude/
