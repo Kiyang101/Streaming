@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { mediaRoot, uploadPath, vodDir, vodPlaylist, vodThumb, vodThumbRel, livePlaylist, matchUploadFile, uploadsDir } from "@/lib/paths";
+import { vodThumbVersionedRel, vodThumbVersioned } from "@/lib/paths";
 import path from "node:path";
 
 describe("paths", () => {
@@ -37,5 +38,18 @@ describe("matchUploadFile", () => {
 describe("uploadsDir", () => {
   it("is media/uploads", () => {
     expect(uploadsDir()).toBe(path.join(mediaRoot(), "uploads"));
+  });
+});
+
+describe("vodThumbVersionedRel", () => {
+  it("builds a unique relative jpg path from id + timestamp", () => {
+    expect(vodThumbVersionedRel("abc", 1717000000000)).toBe("vod/abc/thumb-1717000000000.jpg");
+  });
+});
+
+describe("vodThumbVersioned", () => {
+  it("resolves the versioned path under the media root", () => {
+    const abs = vodThumbVersioned("abc", 42);
+    expect(abs.endsWith(path.join("media", "vod", "abc", "thumb-42.jpg"))).toBe(true);
   });
 });

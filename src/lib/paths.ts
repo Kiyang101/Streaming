@@ -21,6 +21,14 @@ export function vodThumb(id: string): string {
 export function vodThumbRel(id: string): string {
   return `vod/${id}/thumb.jpg`;
 }
+/** Absolute path to a uniquely-named thumbnail for a VOD (cache-busting). */
+export function vodThumbVersioned(id: string, ts: number): string {
+  return path.join(mediaRoot(), "vod", id, `thumb-${ts}.jpg`);
+}
+/** Relative (browser-URL) path to a uniquely-named VOD thumbnail. */
+export function vodThumbVersionedRel(id: string, ts: number): string {
+  return `vod/${id}/thumb-${ts}.jpg`;
+}
 export function liveDir(key: string): string {
   return path.join(mediaRoot(), "live", key);
 }
