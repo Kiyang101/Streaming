@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import fs from "node:fs";
-import type { Video, VideoStatus } from "./types";
+import type { Video, VideoStatus, UpscaleStatus } from "./types";
 
 let db: Database.Database | null = null;
 
@@ -30,6 +30,13 @@ export function openDb(file?: string): Database.Database {
   // Migrate pre-existing DBs that lack the progress column.
   try {
     db.exec(`ALTER TABLE videos ADD COLUMN progress INTEGER`);
+  } catch {}
+  // Migrate pre-existing DBs that lack the upscale columns.
+  try {
+    db.exec(`ALTER TABLE videos ADD COLUMN upscaleStatus TEXT`);
+  } catch {}
+  try {
+    db.exec(`ALTER TABLE videos ADD COLUMN upscaleProgress INTEGER`);
   } catch {}
   return db;
 }
@@ -63,4 +70,12 @@ export function setThumbnail(id: string, thumbnail: string): void {
 
 export function setProgress(id: string, percent: number): void {
   conn().prepare(`UPDATE videos SET progress = ? WHERE id = ?`).run(percent, id);
+}
+
+export function setUpscaleStatus(id: string, status: UpscaleStatus): void {
+  conn().prepare(`UPDATE videos SET upscaleStatus = ? WHERE id = ?`).run(status, id);
+}
+
+export function setUpscaleProgress(id: string, percent: number): void {
+  conn().prepare(`UPDATE videos SET upscaleProgress = ? WHERE id = ?`).run(percent, id);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { openDb, insertVideo, listVideos, getVideo, setStatus, setThumbnail, setProgress } from "@/lib/db";
+import { openDb, insertVideo, listVideos, getVideo, setStatus, setThumbnail, setProgress, setUpscaleStatus, setUpscaleProgress } from "@/lib/db";
 
 beforeEach(() => {
   // Use an in-memory DB for isolation.
@@ -59,5 +59,23 @@ describe("db", () => {
       setProgress("a", 42);
       expect(getVideo("a")?.progress).toBe(42);
     });
+  });
+});
+
+describe("upscale columns", () => {
+  it("default to null/undefined on insert", () => {
+    insertVideo({ id: "u", title: "U", type: "vod", status: "ready", path: "vod/u/master.m3u8", createdAt: 1 });
+    const v = getVideo("u");
+    expect(v?.upscaleStatus == null).toBe(true);
+    expect(v?.upscaleProgress == null).toBe(true);
+  });
+
+  it("persist via setUpscaleStatus and setUpscaleProgress", () => {
+    insertVideo({ id: "u", title: "U", type: "vod", status: "ready", path: "vod/u/master.m3u8", createdAt: 1 });
+    setUpscaleStatus("u", "upscaling");
+    setUpscaleProgress("u", 37);
+    const v = getVideo("u");
+    expect(v?.upscaleStatus).toBe("upscaling");
+    expect(v?.upscaleProgress).toBe(37);
   });
 });
