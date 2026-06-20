@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { newId } from "@/lib/ids";
 import { uploadPath, vodDir, vodPlaylist, vodThumb, vodThumbRel } from "@/lib/paths";
 import { insertVideo, setStatus, setThumbnail, setProgress } from "@/lib/db";
-import { transcodeToHls, extractPoster } from "@/lib/transcode";
+import { transcodeToHls, extractPosterAt } from "@/lib/transcode";
 
 const ALLOWED = ["video/mp4", "video/quicktime", "video/x-matroska", "video/webm"];
 
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
     .then(async () => {
       // Poster extraction is best-effort: failure must never block "ready".
       try {
-        await extractPoster(savedPath, vodThumb(id));
+        await extractPosterAt(savedPath, vodThumb(id), 1);
         setThumbnail(id, vodThumbRel(id));
       } catch (err) {
         console.error(`poster extraction failed for ${id}:`, err);

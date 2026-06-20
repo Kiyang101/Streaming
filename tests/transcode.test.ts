@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { transcodeToHls, extractPoster, probeDuration } from "@/lib/transcode";
+import { transcodeToHls, extractPosterAt, normalizeImageToJpeg, posterArgs, imageArgs, probeDuration } from "@/lib/transcode";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -52,16 +52,50 @@ describe("probeDuration", () => {
   });
 });
 
-describe("extractPoster", () => {
-  it("writes a non-empty jpg to the given path", async () => {
-    const outPath = path.join(posterDir, "thumb.jpg");
-    await extractPoster("tests/fixtures/sample.mp4", outPath);
+describe("posterArgs", () => {
+  it("seeks to the given second with a single output frame", () => {
+    expect(posterArgs("in.mp4", "out.jpg", 12)).toEqual([
+      "-ss", "12", "-i", "in.mp4", "-frames:v", "1", "-y", "out.jpg",
+    ]);
+  });
+  it("preserves the 1s default used at upload time", () => {
+    expect(posterArgs("in.mp4", "out.jpg", 1)[1]).toBe("1");
+  });
+});
+
+describe("imageArgs", () => {
+  it("re-encodes a single frame from the input image", () => {
+    expect(imageArgs("in.png", "out.jpg")).toEqual([
+      "-i", "in.png", "-frames:v", "1", "-y", "out.jpg",
+    ]);
+  });
+});
+
+describe("extractPosterAt", () => {
+  it("writes a non-empty jpg at the requested timestamp", async () => {
+    const outPath = path.join(posterDir, "thumb-at.jpg");
+    await extractPosterAt("tests/fixtures/sample.mp4", outPath, 0);
     expect(fs.existsSync(outPath)).toBe(true);
     expect(fs.statSync(outPath).size).toBeGreaterThan(0);
   }, 60_000);
 
   it("rejects when the input file does not exist", async () => {
     const outPath = path.join(posterDir, "missing-input.jpg");
-    await expect(extractPoster("tests/fixtures/nope.mp4", outPath)).rejects.toThrow();
+    await expect(extractPosterAt("tests/fixtures/nope.mp4", outPath, 1)).rejects.toThrow();
+  });
+});
+
+describe("normalizeImageToJpeg", () => {
+  it("re-encodes an existing image to a non-empty jpg", async () => {
+    const src = path.join(posterDir, "norm-src.jpg");
+    await extractPosterAt("tests/fixtures/sample.mp4", src, 0);
+    const out = path.join(posterDir, "norm-out.jpg");
+    await normalizeImageToJpeg(src, out);
+    expect(fs.existsSync(out)).toBe(true);
+    expect(fs.statSync(out).size).toBeGreaterThan(0);
+  }, 60_000);
+
+  it("rejects when the input file does not exist", async () => {
+    await expect(normalizeImageToJpeg("tests/fixtures/nope.png", path.join(posterDir, "x.jpg"))).rejects.toThrow();
   });
 });

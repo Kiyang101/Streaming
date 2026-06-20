@@ -184,25 +184,26 @@ export function transcodeToHls(
   });
 }
 
-/**
- * Extract a single poster frame (~1s in) from an input video to outPath as a
- * JPEG. Resolves on success, rejects on non-zero exit / missing input.
- */
-export function extractPoster(inputPath: string, outPath: string): Promise<void> {
+/** Pure: ffmpeg args to grab a single frame at `seconds` into `out` as JPEG.
+ *  `-ss` before `-i` is a fast (keyframe) seek — fine for a poster. */
+export function posterArgs(input: string, out: string, seconds: number): string[] {
+  return ["-ss", String(seconds), "-i", input, "-frames:v", "1", "-y", out];
+}
+
+/** Pure: ffmpeg args to re-encode any input image to a single JPEG frame. */
+export function imageArgs(input: string, out: string): string[] {
+  return ["-i", input, "-frames:v", "1", "-y", out];
+}
+
+/** Run ffmpeg to produce a single image file at `outPath`. Resolves on success,
+ *  rejects on missing input or non-zero exit. Shared by the poster/image paths. */
+function runFfmpegFrame(inputPath: string, outPath: string, args: string[]): Promise<void> {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(inputPath)) {
       reject(new Error(`input not found: ${inputPath}`));
       return;
     }
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
-
-    const args = [
-      "-ss", "00:00:01",
-      "-i", inputPath,
-      "-frames:v", "1",
-      "-y", outPath,
-    ];
-
     const proc = spawn("ffmpeg", args, { stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     proc.stderr.on("data", (d) => (stderr += d.toString()));
@@ -212,4 +213,14 @@ export function extractPoster(inputPath: string, outPath: string): Promise<void>
       else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-500)}`));
     });
   });
+}
+
+/** Extract a single poster frame at `seconds` into `outPath` (JPEG). */
+export function extractPosterAt(inputPath: string, outPath: string, seconds: number): Promise<void> {
+  return runFfmpegFrame(inputPath, outPath, posterArgs(inputPath, outPath, seconds));
+}
+
+/** Re-encode an uploaded image to a normalized JPEG at `outPath`. */
+export function normalizeImageToJpeg(inputPath: string, outPath: string): Promise<void> {
+  return runFfmpegFrame(inputPath, outPath, imageArgs(inputPath, outPath));
 }
