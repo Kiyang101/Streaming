@@ -36,6 +36,30 @@ export function localQueueReducer(
       const activeId = state.activeId ?? action.items[0]?.id ?? null;
       return { items, activeId };
     }
+    case "remove": {
+      const index = state.items.findIndex((i) => i.id === action.id);
+      if (index === -1) return state;
+      const items = state.items.filter((i) => i.id !== action.id);
+      let activeId = state.activeId;
+      if (state.activeId === action.id) {
+        // Advance to whatever now sits at the removed slot, else the new last,
+        // else nothing.
+        activeId = items.length === 0 ? null : items[Math.min(index, items.length - 1)].id;
+      }
+      return { items, activeId };
+    }
+    case "setActive": {
+      if (!state.items.some((i) => i.id === action.id)) return state;
+      return { ...state, activeId: action.id };
+    }
+    case "setStatus": {
+      const items = state.items.map((i) =>
+        i.id === action.id ? { ...i, status: action.status } : i,
+      );
+      return { ...state, items };
+    }
+    case "clear":
+      return { items: [], activeId: null };
     default:
       return state;
   }
