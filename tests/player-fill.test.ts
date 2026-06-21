@@ -4,7 +4,7 @@ import { videoFitClass, parseFillMode } from "@/components/Player";
 /**
  * Player keeps the zoom-to-fill logic in two exported pure helpers so they can
  * be unit-tested without a DOM render (vitest runs `environment: "node"`),
- * mirroring the `progressDisplay` / `upscaleAction` pattern elsewhere.
+ * mirroring the `progressDisplay` pattern elsewhere.
  */
 
 describe("videoFitClass", () => {

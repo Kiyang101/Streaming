@@ -20,7 +20,7 @@ export default function Home() {
 
   // Poll faster while anything is still transcoding so the percentage visibly
   // advances, then back off to avoid over-polling an idle library.
-  const isBusy = videos.some((v) => v.status === "processing" || v.upscaleStatus === "upscaling");
+  const isBusy = videos.some((v) => v.status === "processing");
   useEffect(() => {
     refresh();
     const intervalMs = isBusy ? 2000 : 4000;
