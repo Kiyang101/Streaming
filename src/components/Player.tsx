@@ -35,6 +35,17 @@ export function parseFillMode(raw: string | null): boolean {
   return raw === "fill";
 }
 
+/** Playback mode. "hls" runs the hls.js/native HLS pipeline (default, for
+ *  transcoded VOD/live). "file" plays a direct media source (object URL) on the
+ *  native <video> with no manifest parsing — used for local files. */
+export type PlayerMode = "hls" | "file";
+
+/** True when the source should go through the HLS pipeline; false for a direct
+ *  file source set straight on video.src. */
+export function usesHlsPipeline(mode: PlayerMode): boolean {
+  return mode !== "file";
+}
+
 /** Format a number of seconds as m:ss (or h:mm:ss for long content). Guards
  *  against NaN/Infinity, which `video.duration` reports before metadata loads. */
 function formatTime(seconds: number): string {
@@ -53,9 +64,11 @@ function formatTime(seconds: number): string {
  *  "/media/vod/<id>/master.m3u8". */
 export default function Player({
   src,
+  mode = "hls",
   onTimeUpdate,
 }: {
   src: string;
+  mode?: PlayerMode;
   onTimeUpdate?: (seconds: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -92,6 +105,16 @@ export default function Player({
     setError(null);
     setLevels([]);
     setCurrentLevel(AUTO_LEVEL);
+
+    // Direct-file playback (local files): no manifest, no hls.js — set the object
+    // URL straight on the element. The quality menu stays hidden (levels empty).
+    if (!usesHlsPipeline(mode)) {
+      video.src = src;
+      return () => {
+        video.removeAttribute("src");
+        video.load();
+      };
+    }
 
     const strategy = selectHlsStrategy(
       Hls.isSupported(),
@@ -134,7 +157,7 @@ export default function Player({
       return;
     }
     setError("HLS is not supported in this browser.");
-  }, [src]);
+  }, [src, mode]);
 
   // --- Control helpers -----------------------------------------------------
   const togglePlay = useCallback(() => {
