@@ -1,7 +1,8 @@
 # Video Streaming Prototype
 
-Local-only demo that streams both on-demand (uploaded → transcoded) and live
-(OBS → RTMP) video to the browser via HLS.
+Local-only demo that plays video in the browser three ways: on-demand
+(uploaded → transcoded → HLS), live (OBS → RTMP → HLS), and local files played
+straight from your device with no upload.
 
 ## Requirements
 - Node.js 20+
