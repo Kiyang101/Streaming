@@ -26,6 +26,17 @@ npm run media-server   # RTMP ingest at rtmp://localhost:1935
 2. Upload a video. It shows "processing…" then "Watch" when transcoded.
 3. Click Watch — it plays via HLS with adaptive bitrate.
 
+## Local files (no upload)
+
+Open http://localhost:3000/local to play video files straight from your device —
+no upload, no transcode. Pick one or more files; they queue up and play through
+the same player. In browsers with the File System Access API (e.g. Chrome) the
+queue is remembered across reloads (you re-grant read access on return). In
+browsers without it (e.g. VS Code's Simple Browser) playback is session-only.
+
+Playback uses the browser's native decoder, so well-supported formats (MP4 /
+H.264) are most reliable; some containers/codecs (e.g. MKV) may not play.
+
 ## Live smoke-test checklist (manual)
 1. Start both processes above.
 2. In OBS → Settings → Stream: Service "Custom", Server
